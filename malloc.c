@@ -21,7 +21,7 @@ struct block_meta {
   struct block_meta *prev;
   int free;
   int magic;
-  char padding[8]; // Cache-line alignment padding
+  char padding[8];
 };
 
 struct block_meta *find_free_block(struct block_meta **last, size_t size) {
@@ -82,7 +82,6 @@ void split_block(struct block_meta *block, size_t size) {
 }
 
 struct block_meta *coalesce(struct block_meta *block) {
-  // Forward coalescing
   if (block->next && block->next->free) {
     block->size += META_SIZE + block->next->size;
     block->next = block->next->next;
@@ -91,7 +90,6 @@ struct block_meta *coalesce(struct block_meta *block) {
     }
   }
 
-  // Backward coalescing
   if (block->prev && block->prev->free) {
     block->prev->size += META_SIZE + block->size;
     block->prev->next = block->next;
@@ -124,7 +122,6 @@ void *malloc(size_t size) {
 
   pthread_mutex_lock(&malloc_mutex);
 
-  // Deferred coalescing: only coalesce when threshold is reached
   if (free_count >= COALESCE_THRESHOLD) {
     deferred_coalesce();
   }
@@ -171,7 +168,6 @@ void free(void *ptr) {
   block_ptr->free = 1;
   block_ptr->magic = 0x55555555;
   
-  // Deferred coalescing: increment counter instead of immediate merge
   free_count++;
   
   pthread_mutex_unlock(&malloc_mutex);
